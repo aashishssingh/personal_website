@@ -1,0 +1,32 @@
+{
+    "id": "0F9C4DB1",
+    "path": "~/Documents/STATS_140XP/personal_website/about.qmd",
+    "project_path": "about.qmd",
+    "type": "quarto_markdown",
+    "hash": "500241099",
+    "contents": "",
+    "dirty": false,
+    "created": 1710097305989.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "rmdVisualMode": "false",
+        "rmdVisualWrapConfigured": "true",
+        "source_window_id": "",
+        "Source": "Source",
+        "docOutlineVisible": "1",
+        "rmdVisualCollapsedChunks": "",
+        "rmdVisualModeLocation": "30:0",
+        "cursorPosition": "31,84",
+        "scrollLine": "12",
+        "docOutlineSize": "70"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1710104130,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1710104130896,
+    "read_only": false,
+    "read_only_alternatives": []
+}
