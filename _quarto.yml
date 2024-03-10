@@ -6,7 +6,9 @@ website:
   navbar:
     left:
       - href: index.qmd
+        text: Home
       - href: about.qmd
+        text: Education
       - href: professional.qmd
 
 format:

@@ -1,3 +1,22 @@
-# Home
+---
+toc: FALSE
+about: 
+    template: trestles
+    links: 
+      - icon: linkedin
+        text: Linkedin
+        url: https://www.linkedin.com/in/ashish-530singh
+      - icon: github
+        text: Github
+        url: https://github.com/aashishssingh
+      - icon: inbox-fill
+        text: Gmail
+        url: "mailto:ashish.530singh@gmail.com"
+        
+image: IMG_9810.JPG
+---
 
+## About Me
+
+#### My name is Ashish Singh and I am a 21 years old. I was born on June 30th, 2002 in Sacramento, California. During my free time, I enjoy powerlifting, playing sports such as basketball, trying new foods, and traveling to new places. 
 
