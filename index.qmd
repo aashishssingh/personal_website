@@ -14,7 +14,7 @@ about:
         url: "mailto:ashish.530singh@gmail.com"
       - icon: file-earmark-person-fill
         text: Resume
-        url: "/Ashish_Singh_Resume copy.pdf"
+        url: "/personal_website/Ashish_Singh_Resume copy.pdf"
         
 image: IMG_9810.JPG
 ---
