@@ -10,6 +10,8 @@ website:
       - href: about.qmd
         text: Education
       - href: professional.qmd
+        text: Projects
+      - href: projects.qmd
       
   page-footer: 
     right: "&copy; 2024, Ashish Singh"
