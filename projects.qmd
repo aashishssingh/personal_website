@@ -10,7 +10,7 @@ This will be a short description of the project following a link to the project
 
 ## Civic Engagement
 
-- [Full Project](#civic_engagement)
+- [Full Project](#civic_engagement.qmd)
 
 This will be a short description of the project following a link to the project
 
