@@ -1,2 +1,8 @@
 # Projects
 
+## Magic Vs. Galactic: A Sentiment Analysis of Harry Potter and Star Wars
+
+## Predicting Heart Failure
+
+## Civic Engagement
+
