@@ -13,7 +13,7 @@ about:
         text: Gmail
         url: "mailto:ashish.530singh@gmail.com"
 
-image: IMG_9810.JPG
+image: grad.JPG
 ---
 
 ## About Me
