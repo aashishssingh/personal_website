@@ -1,8 +1,16 @@
 # Projects
 
-## Magic Vs. Galactic: A Sentiment Analysis of Harry Potter and Star Wars
+## Magic Vs. Galactic: A Sentiment Analysis of Harry Potter and Star Wars 
+
+This will be a short description of the project following a link to the project
 
 ## Predicting Heart Failure
 
+This will be a short description of the project following a link to the project
+
 ## Civic Engagement
+
+- [Full Project](#civic_engagement)
+
+This will be a short description of the project following a link to the project
 
