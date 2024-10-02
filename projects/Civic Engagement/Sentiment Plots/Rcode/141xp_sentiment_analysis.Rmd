@@ -1,0 +1,345 @@
+---
+title: "Sentiment Analysis"
+author: "Ashish Singh"
+date: "2024-05-20"
+output: pdf_document
+---
+
+```{r, include = FALSE}
+
+library(caTools)
+library(colorspace)
+library(dbscan)
+library(dplyr)
+library(ggfortify)
+library(ggplot2)
+library(gutenbergr)
+library(magrittr)
+library(NLP)
+library(pdftools)
+library(proxy)
+library(quanteda)
+library(quanteda.corpora)
+library(readtext)
+library(reshape2)
+library(scales)
+library(spacyr)
+library(stringr)
+library(syuzhet)
+library(text2vec)
+library(textdata)
+library(tm)
+library(tidyr)
+library(tidyverse)
+library(tidytext)
+library(topicmodels)
+library(webshot)
+library(webshot2)
+library(wordcloud)
+library(wordcloud2)
+
+```
+
+# Loading data
+
+```{r}
+
+# Loading in the files
+old_pre <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_old_pre.csv")
+
+old_post <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_old_post.csv")
+
+new_pre <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_new_pre.csv")
+
+new_post <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_new_post.csv")
+
+
+```
+
+# Subsetting text
+
+```{r}
+
+# Per each survey
+old_pre_text <- c(old_pre[, 29], old_pre[, 30]) # Subsetting the text column
+old_pre_text <- as.data.frame(old_pre_text) # Changing to data frame format for tidy or text mining restrictions
+
+# Repeated Process for other data files
+old_post_text <- c(old_post[, 29], old_post[, 30]) 
+old_post_text <- as.data.frame(old_post_text)
+
+
+new_pre_text <- c(new_pre[, 29], new_pre[, 30])
+new_pre_text <- as.data.frame(new_pre_text)
+
+
+new_post_text <- c(new_post[, 29], new_post[, 30])
+new_post_text <- as.data.frame(new_post_text)
+
+# Changing column name for later code (Personal preference)
+colnames(old_pre_text) <- "Line"
+colnames(old_post_text) <- "Line"
+colnames(new_pre_text) <- "Line"
+colnames(new_post_text) <- "Line"
+
+# Removing NA values
+old_pre_text <- na.omit(old_pre_text)
+old_post_text <- na.omit(old_post_text)
+new_pre_text <- na.omit(new_pre_text)
+new_post_text <- na.omit(new_post_text)
+
+
+# For Old/New
+
+# Combing data subsets for further analysis and plots
+old_text <- rbind(old_pre_text, old_post_text)
+new_text <- rbind(new_pre_text, new_post_text)
+
+# For Pre/Post
+
+# Same process for different results
+pre_text <- rbind(old_pre_text, new_pre_text)
+post_text <- rbind(old_post_text, new_post_text)
+
+```
+
+# Creating the tidys
+
+```{r}
+
+# Per Each Survey
+tidy_old_pre <- old_pre_text %>%
+  unnest_tokens(word, Line) %>% # Taking the responses and giving each word its own row
+  anti_join(stop_words) # Removing stop words (Stop words: commonly used words that ruin the data/plots due to their frequent usage Ex. The, it , are, etc.)
+
+tidy_old_post <- old_post_text %>% # Repeating process for the rest of the subsets
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+
+tidy_new_pre <- new_pre_text %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+tidy_new_post <- new_post_text %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# For Old/New
+
+tidy_old <- old_text %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+tidy_new <- new_text %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# For Pre/Post
+
+tidy_pre <- pre_text %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+tidy_post <- post_text %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+
+```
+
+# NRC Sentiments
+
+```{r}
+
+nrc <- get_sentiments("nrc") # Importing nrc emotion lexicon
+
+sent_old_pre <- nrc %>% 
+  inner_join(tidy_old_pre, by = "word") %>% # Assigning emotion to each word by inner joining (Drawing columns from each data frame and combing on the word column)
+  count(sentiment) # Sum of the emotions to develop plots
+
+sent_old_post <- nrc %>%
+  inner_join(tidy_old_post, by = "word") %>% # Repeating process for all subsets
+  count(sentiment)
+
+
+sent_new_pre <- nrc %>% 
+  inner_join(tidy_new_pre, by = "word") %>%
+  count(sentiment)
+
+sent_new_post <- nrc %>%
+  inner_join(tidy_new_post, by = "word") %>%
+  count(sentiment)
+
+# For Old/New
+
+sent_old <- nrc %>% 
+  inner_join(tidy_old, by = "word") %>%
+  count(sentiment)
+
+sent_new <- nrc %>%
+  inner_join(tidy_new, by = "word") %>%
+  count(sentiment)
+
+
+# For Pre/Post
+
+sent_pre <- nrc %>% 
+  inner_join(tidy_pre, by = "word") %>%
+  count(sentiment)
+
+sent_post <- nrc %>%
+  inner_join(tidy_post, by = "word") %>%
+  count(sentiment)
+
+```
+
+# nrc Plots
+
+```{r}
+
+# Utilizing ggplot and ggsave to create sentiment plots and save them as png files for higher quality plots.
+
+nrc_old_pre <- ggplot(sent_old_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The Old Pre Survey") + theme_minimal() + ylim(0, 1500) # Uniform scale for plots that are comparable.
+nrc_old_pre
+
+nrc_old_post <- ggplot(sent_old_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The Old Post Survey") + theme_minimal() + ylim(0, 1500)
+nrc_old_post
+
+
+nrc_new_pre <- ggplot(sent_new_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The New Pre Survey") + theme_minimal() + ylim(0, 1500)
+nrc_new_pre
+
+nrc_new_post <- ggplot(sent_new_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The New Post Survey") + theme_minimal() + ylim(0, 1500)
+nrc_new_post
+
+ggsave("nrc_old_pre.png", plot = nrc_old_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_old_post.png", plot = nrc_old_post, width = 8, height = 6, units = "in", dpi = 300)
+
+
+ggsave("nrc_new_pre.png", plot = nrc_new_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_new_post.png", plot = nrc_new_post, width = 8, height = 6, units = "in", dpi = 300)
+
+
+# For Old/New
+
+nrc_old <- ggplot(sent_old, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The Old Survey") + theme_minimal() + ylim(0, 2500) # Uniform scale for plots that are comparable.
+nrc_old
+
+nrc_new <- ggplot(sent_new, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The New Survey") + theme_minimal() + ylim(0, 2500)
+nrc_new
+
+ggsave("nrc_old.png", plot = nrc_old, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_new.png", plot = nrc_new, width = 8, height = 6, units = "in", dpi = 300)
+
+# For Pre/Post
+
+nrc_pre <- ggplot(sent_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The Pre Surveys") + theme_minimal() + ylim(0, 2500) # Uniform scale for plots that are comparable.
+nrc_pre
+
+nrc_post <- ggplot(sent_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The Post Surveys") + theme_minimal() + ylim(0, 2500)
+nrc_post
+
+ggsave("nrc_pre.png", plot = nrc_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_post.png", plot = nrc_post, width = 8, height = 6, units = "in", dpi = 300)
+
+```
+
+# Bing Sentiments
+
+```{r}
+
+# This entire process is repeating steps, however, we are utilizing the bing emotions lexicon in order to see a positive/negative specific sentiment analysis. 
+
+bing <- get_sentiments("bing")
+
+sent_old_pre2 <- bing %>% 
+  inner_join(tidy_old_pre, by = "word") %>%
+  count(sentiment)
+
+sent_old_post2 <- bing %>%
+  inner_join(tidy_old_post, by = "word") %>%
+  count(sentiment)
+
+
+sent_new_pre2 <- bing %>% 
+  inner_join(tidy_new_pre, by = "word") %>%
+  count(sentiment)
+
+sent_new_post2 <- bing %>%
+  inner_join(tidy_new_post, by = "word") %>%
+  count(sentiment)
+
+# For Old/New
+
+sent_old2 <- bing %>% 
+  inner_join(tidy_old, by = "word") %>%
+  count(sentiment)
+
+sent_new2 <- bing %>%
+  inner_join(tidy_new, by = "word") %>%
+  count(sentiment)
+
+
+# For Pre/Post
+
+sent_pre2 <- bing %>% 
+  inner_join(tidy_pre, by = "word") %>%
+  count(sentiment)
+
+sent_post2 <- bing %>%
+  inner_join(tidy_post, by = "word") %>%
+  count(sentiment)
+
+```
+
+# Bing Plots
+
+```{r}
+
+bing_old_pre <- ggplot(sent_old_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The Old Pre Survey") + theme_minimal() + ylim(0, 300)
+bing_old_pre
+
+bing_old_post <- ggplot(sent_old_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The Old Post Survey") + theme_minimal() + ylim(0, 300)
+bing_old_post
+
+
+bing_new_pre <- ggplot(sent_new_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The New Pre Survey") + theme_minimal() + ylim(0, 300)
+bing_new_pre
+
+bing_new_post <- ggplot(sent_new_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The New Post Survey") + theme_minimal() + ylim(0, 300)
+bing_new_post
+
+ggsave("bing_old_pre.png", plot = bing_old_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_old_post.png", plot = bing_old_post, width = 8, height = 6, units = "in", dpi = 300)
+
+
+ggsave("bing_new_pre.png", plot = bing_new_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_new_post.png", plot = bing_new_post, width = 8, height = 6, units = "in", dpi = 300)
+
+
+# For Old/New
+
+bing_old <- ggplot(sent_old2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The Old Survey") + theme_minimal() + ylim(0, 600)
+bing_old
+
+bing_new <- ggplot(sent_new2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The New Survey") + theme_minimal() + ylim(0, 600)
+bing_new
+
+ggsave("bing_old.png", plot = bing_old, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_new.png", plot = bing_new, width = 8, height = 6, units = "in", dpi = 300)
+
+# For Pre/Post
+
+bing_pre <- ggplot(sent_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The Pre Surveys") + theme_minimal() + ylim(0, 600)
+bing_pre
+
+bing_post <- ggplot(sent_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The Post Surveys") + theme_minimal() + ylim(0, 600)
+bing_post
+
+ggsave("bing_pre.png", plot = bing_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_post.png", plot = bing_post, width = 8, height = 6, units = "in", dpi = 300)
+
+```
+
+

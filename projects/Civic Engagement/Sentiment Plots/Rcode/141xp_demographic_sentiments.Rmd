@@ -1,0 +1,477 @@
+---
+title: "Sentiment Analysis by Demographics"
+author: "Ashish Singh"
+date: "2024-05-30"
+output: html_document
+---
+
+```{r, include = FALSE}
+
+library(caTools)
+library(colorspace)
+library(dbscan)
+library(dplyr)
+library(ggfortify)
+library(ggplot2)
+library(gutenbergr)
+library(magrittr)
+library(NLP)
+library(pdftools)
+library(proxy)
+library(quanteda)
+library(quanteda.corpora)
+library(readtext)
+library(reshape2)
+library(scales)
+library(spacyr)
+library(stringr)
+library(syuzhet)
+library(text2vec)
+library(textdata)
+library(tm)
+library(tidyr)
+library(tidyverse)
+library(tidytext)
+library(topicmodels)
+library(webshot)
+library(webshot2)
+library(wordcloud)
+library(wordcloud2)
+
+```
+
+# Loading in the data
+
+```{r}
+
+old_pre <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_old_pre.csv")
+
+old_post <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_old_post.csv")
+
+new_pre <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_new_pre.csv")
+
+new_post <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_new_post.csv")
+
+```
+
+# Spliting data by Major
+
+```{r}
+
+# North Campus Pre and Post
+north_pre1 <- c(old_pre[old_pre$Major == "North Campus", 29], old_pre[old_pre$Major == "North Campus", 30])
+north_pre2 <- c(new_pre[new_pre$Major == "North Campus", 29], new_pre[new_pre$Major == "North Campus", 30])
+north_pre1 <- as.data.frame(north_pre1)
+north_pre2 <- as.data.frame(north_pre2)
+
+colnames(north_pre1) <- "Line"
+colnames(north_pre2) <- "Line"
+north_pre <- rbind(north_pre1, north_pre2)
+
+
+north_post1 <- c(old_post[old_post$Major == "North Campus", 29], old_post[old_post$Major == "North Campus", 30])
+north_post2 <- c(new_post[new_post$Major == "North Campus", 29], new_post[new_post$Major == "North Campus", 30])
+north_post1 <- as.data.frame(north_post1)
+north_post2 <- as.data.frame(north_post2)
+
+colnames(north_post1) <- "Line"
+colnames(north_post2) <- "Line"
+north_post <- rbind(north_post1, north_post2)
+
+rm(north_post1)
+rm(north_post2)
+rm(north_pre1)
+rm(north_pre2)
+
+# South Campus Pre and Post
+south_pre1 <- c(old_pre[old_pre$Major == "South Campus", 29], old_pre[old_pre$Major == "South Campus", 30])
+south_pre2 <- c(new_pre[new_pre$Major == "South Campus", 29], new_pre[new_pre$Major == "South Campus", 30])
+south_pre1 <- as.data.frame(south_pre1)
+south_pre2 <- as.data.frame(south_pre2)
+
+colnames(south_pre1) <- "Line"
+colnames(south_pre2) <- "Line"
+south_pre <- rbind(south_pre1, south_pre2)
+
+
+south_post1 <- c(old_post[old_post$Major == "South Campus", 29], old_post[old_post$Major == "South Campus", 30])
+south_post2 <- c(new_post[new_post$Major == "South Campus", 29], new_post[new_post$Major == "South Campus", 30])
+south_post1 <- as.data.frame(south_post1)
+south_post2 <- as.data.frame(south_post2)
+
+colnames(south_post1) <- "Line"
+colnames(south_post2) <- "Line"
+south_post <- rbind(south_post1, south_post2)
+
+rm(south_post1)
+rm(south_post2)
+rm(south_pre1)
+rm(south_pre2)
+
+# Undecided/Multi-Major/Other Pre and Post
+undec_pre1 <- c(old_pre[old_pre$Major == "Undecided/Multi-Major/Other", 29], old_pre[old_pre$Major == "Undecided/Multi-Major/Other", 30])
+undec_pre2 <- c(new_pre[new_pre$Major == "Undecided/Multi-Major/Other", 29], new_pre[new_pre$Major == "Undecided/Multi-Major/Other", 30])
+undec_pre1 <- as.data.frame(undec_pre1)
+undec_pre2 <- as.data.frame(undec_pre2)
+
+colnames(undec_pre1) <- "Line"
+colnames(undec_pre2) <- "Line"
+undec_pre <- rbind(undec_pre1, undec_pre2)
+
+
+undec_post1 <- c(old_post[old_post$Major == "Undecided/Multi-Major/Other", 29], old_post[old_post$Major == "Undecided/Multi-Major/Other", 30])
+undec_post2 <- c(new_post[new_post$Major == "Undecided/Multi-Major/Other", 29], new_post[new_post$Major == "Undecided/Multi-Major/Other", 30])
+undec_post1 <- as.data.frame(undec_post1)
+undec_post2 <- as.data.frame(undec_post2)
+
+colnames(undec_post1) <- "Line"
+colnames(undec_post2) <- "Line"
+undec_post <- rbind(undec_post1, undec_post2)
+
+rm(undec_post1)
+rm(undec_post2)
+rm(undec_pre1)
+rm(undec_pre2)
+
+north_pre <- na.omit(north_pre)
+north_post <- na.omit(north_post)
+south_pre <- na.omit(south_pre)
+south_post <- na.omit(south_post)
+undec_pre <- na.omit(undec_pre)
+undec_post <- na.omit(undec_post)
+
+
+```
+
+# Spliting data by Major
+
+```{r}
+
+# Traditional Students
+traditional_pre1 <- c(old_pre[old_pre$Transfer == "No", 29], old_pre[old_pre$Transfer == "No", 30])
+traditional_pre2 <- c(new_pre[new_pre$Transfer == "No", 29], new_pre[new_pre$Transfer == "No", 30])
+traditional_pre1 <- as.data.frame(traditional_pre1)
+traditional_pre2 <- as.data.frame(traditional_pre2)
+
+colnames(traditional_pre1) <- "Line"
+colnames(traditional_pre2) <- "Line"
+traditional_pre <- rbind(traditional_pre1, traditional_pre2)
+
+
+traditional_post1 <- c(old_post[old_post$Transfer == "No", 29], old_post[old_post$Transfer == "No", 30])
+traditional_post2 <- c(new_post[new_post$Transfer == "No", 29], new_post[new_post$Transfer == "No", 30])
+traditional_post1 <- as.data.frame(traditional_post1)
+traditional_post2 <- as.data.frame(traditional_post2)
+
+colnames(traditional_post1) <- "Line"
+colnames(traditional_post2) <- "Line"
+traditional_post <- rbind(traditional_post1, traditional_post2)
+
+rm(traditional_pre1)
+rm(traditional_pre2)
+rm(traditional_post1)
+rm(traditional_post2)
+
+# Transfer Students
+transfer_pre1 <- c(old_pre[old_pre$Transfer == "Yes", 29], old_pre[old_pre$Transfer == "Yes", 30])
+transfer_pre2 <- c(new_pre[new_pre$Transfer == "Yes", 29], new_pre[new_pre$Transfer == "Yes", 30])
+transfer_pre1 <- as.data.frame(transfer_pre1)
+transfer_pre2 <- as.data.frame(transfer_pre2)
+
+colnames(transfer_pre1) <- "Line"
+colnames(transfer_pre2) <- "Line"
+transfer_pre <- rbind(transfer_pre1, transfer_pre2)
+
+
+transfer_post1 <- c(old_post[old_post$Transfer == "Yes", 29], old_post[old_post$Transfer == "Yes", 30])
+transfer_post2 <- c(new_post[new_post$Transfer == "Yes", 29], new_post[new_post$Transfer == "Yes", 30])
+transfer_post1 <- as.data.frame(transfer_post1)
+transfer_post2 <- as.data.frame(transfer_post2)
+
+colnames(transfer_post1) <- "Line"
+colnames(transfer_post2) <- "Line"
+transfer_post <- rbind(transfer_post1, transfer_post2)
+
+rm(transfer_pre1)
+rm(transfer_pre2)
+rm(transfer_post1)
+rm(transfer_post2)
+
+
+traditional_pre <- na.omit(traditional_pre)
+traditional_post <- na.omit(traditional_post)
+transfer_pre <- na.omit(transfer_pre)
+transfer_post <- na.omit(transfer_post)
+
+
+```
+
+# Creating the Tidy's
+
+```{r}
+
+# North
+tidy_north_pre <- north_pre %>%
+  unnest_tokens(word, Line) %>% # Taking the responses and giving each word its own row
+  anti_join(stop_words) # Removing stop words (Stop words: commonly used words that ruin the data/plots due to their frequent usage Ex. The, it , are, etc.)
+
+tidy_north_post <- north_post %>% # Repeating process for the rest of the subsets
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# South
+tidy_south_pre <- south_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_south_post <- south_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# Undecided
+tidy_undec_pre <- undec_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_undec_post <- undec_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# Traditional
+tidy_traditional_pre <- traditional_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_traditional_post <- traditional_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# transfer
+tidy_transfer_pre <- transfer_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_transfer_post <- transfer_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+```
+
+# NRC Sentiments
+
+```{r}
+
+nrc <- get_sentiments("nrc")
+
+# North
+sent_north_pre <- nrc %>% 
+  inner_join(tidy_north_pre, by = "word", relationship = "many-to-many") %>% # Assign emotion to each word by inner joining (Drawing columns from each data frame and combing on the word column)
+  count(sentiment) # Sum of the emotions to develop plots
+
+sent_north_post <- nrc %>%
+  inner_join(tidy_north_post, by = "word", relationship = "many-to-many") %>% # Repeating process for all subsets
+  count(sentiment)
+
+# south
+sent_south_pre <- nrc %>% 
+  inner_join(tidy_south_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_south_post <- nrc %>%
+  inner_join(tidy_south_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Undecided
+sent_undec_pre <- nrc %>% 
+  inner_join(tidy_undec_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_undec_post <- nrc %>%
+  inner_join(tidy_undec_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Traditional
+sent_traditional_pre <- nrc %>% 
+  inner_join(tidy_traditional_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_traditional_post <- nrc %>%
+  inner_join(tidy_traditional_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Transfer
+sent_transfer_pre <- nrc %>% 
+  inner_join(tidy_transfer_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_transfer_post <- nrc %>%
+  inner_join(tidy_transfer_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+```
+
+# NRC Plots
+
+```{r}
+
+# North Campus
+nrc_north_pre <- ggplot(sent_north_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "North Campus Pre Survey") + theme_minimal() + ylim(0, 500) # Uniform scale for plots that are comparable.
+nrc_north_pre
+
+nrc_north_post <- ggplot(sent_north_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "North Campus Post Survey") + theme_minimal() + ylim(0, 500)
+nrc_north_post
+
+ggsave("nrc_north_pre.png", plot = nrc_north_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_north_post.png", plot = nrc_north_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# South Campus
+nrc_south_pre <- ggplot(sent_south_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "South Campus Pre Survey") + theme_minimal() + ylim(0, 500) 
+nrc_south_pre
+
+nrc_south_post <- ggplot(sent_south_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "South Campus Post Survey") + theme_minimal() + ylim(0, 500)
+nrc_south_post
+
+ggsave("nrc_south_pre.png", plot = nrc_south_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_south_post.png", plot = nrc_south_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Undecided 
+nrc_undec_pre <- ggplot(sent_undec_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Undecided Pre Survey") + theme_minimal() + ylim(0, 50) 
+nrc_undec_pre
+
+nrc_undec_post <- ggplot(sent_undec_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Undecided Post Survey") + theme_minimal() + ylim(0, 50)
+nrc_undec_post
+
+ggsave("nrc_undec_pre.png", plot = nrc_undec_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_undec_post.png", plot = nrc_undec_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Traditional
+nrc_traditional_pre <- ggplot(sent_traditional_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Traditional Students Pre Survey") + theme_minimal() + ylim(0, 500) 
+nrc_traditional_pre
+
+nrc_traditional_post <- ggplot(sent_traditional_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Traditional Students Post Survey") + theme_minimal() + ylim(0, 500)
+nrc_traditional_post
+
+ggsave("nrc_traditional_pre.png", plot = nrc_traditional_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_traditional_post.png", plot = nrc_traditional_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Transfer
+nrc_transfer_pre <- ggplot(sent_transfer_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Transfer Students Pre Survey") + theme_minimal() + ylim(0, 500) 
+nrc_transfer_pre
+
+nrc_transfer_post <- ggplot(sent_transfer_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Transfer Students Post Survey") + theme_minimal() + ylim(0, 500)
+nrc_transfer_post
+
+ggsave("nrc_transfer_pre.png", plot = nrc_transfer_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_transfer_post.png", plot = nrc_transfer_post, width = 8, height = 6, units = "in", dpi = 300)
+
+```
+
+# Bing Sentiments
+
+```{r}
+
+bing <- get_sentiments("bing")
+
+# North
+sent_north_pre2 <- bing %>% 
+  inner_join(tidy_north_pre, by = "word", relationship = "many-to-many") %>% # Assign emotion to each word by inner joining (Drawing columns from each data frame and combing on the word column)
+  count(sentiment) # Sum of the emotions to develop plots
+
+sent_north_post2 <- bing %>%
+  inner_join(tidy_north_post, by = "word", relationship = "many-to-many") %>% # Repeating process for all subsets
+  count(sentiment)
+
+# south
+sent_south_pre2 <- bing %>% 
+  inner_join(tidy_south_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_south_post2 <- bing %>%
+  inner_join(tidy_south_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Undecided
+sent_undec_pre2 <- bing %>% 
+  inner_join(tidy_undec_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_undec_post2 <- bing %>%
+  inner_join(tidy_undec_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Traditional
+sent_traditional_pre2 <- bing %>% 
+  inner_join(tidy_traditional_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_traditional_post2 <- bing %>%
+  inner_join(tidy_traditional_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Transfer
+sent_transfer_pre2 <- bing %>% 
+  inner_join(tidy_transfer_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_transfer_post2 <- bing %>%
+  inner_join(tidy_transfer_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+```
+
+# Bing Plots
+
+```{r}
+
+# North Campus
+bing_north_pre <- ggplot(sent_north_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "North Campus Pre Survey") + theme_minimal() + ylim(0, 500) # Uniform scale for plots that are comparable.
+bing_north_pre
+
+bing_north_post <- ggplot(sent_north_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "North Campus Post Survey") + theme_minimal() + ylim(0, 500)
+bing_north_post
+
+ggsave("bing_north_pre.png", plot = bing_north_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_north_post.png", plot = bing_north_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# South Campus
+bing_south_pre <- ggplot(sent_south_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "South Campus Pre Survey") + theme_minimal() + ylim(0, 500) 
+bing_south_pre
+
+bing_south_post <- ggplot(sent_south_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "South Campus Post Survey") + theme_minimal() + ylim(0, 500)
+bing_south_post
+
+ggsave("bing_south_pre.png", plot = bing_south_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_south_post.png", plot = bing_south_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Undecided 
+bing_undec_pre <- ggplot(sent_undec_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Undecided Pre Survey") + theme_minimal() + ylim(0, 30) 
+bing_undec_pre
+
+bing_undec_post <- ggplot(sent_undec_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Undecided Post Survey") + theme_minimal() + ylim(0, 30)
+bing_undec_post
+
+ggsave("bing_undec_pre.png", plot = bing_undec_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_undec_post.png", plot = bing_undec_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Traditional
+bing_traditional_pre <- ggplot(sent_traditional_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Traditional Students Pre Survey") + theme_minimal() + ylim(0, 500) 
+bing_traditional_pre
+
+bing_traditional_post <- ggplot(sent_traditional_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Traditional Students Post Survey") + theme_minimal() + ylim(0, 500)
+bing_traditional_post
+
+ggsave("bing_traditional_pre.png", plot = bing_traditional_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_traditional_post.png", plot = bing_traditional_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Transfer
+bing_transfer_pre <- ggplot(sent_transfer_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Transfer Students Pre Survey") + theme_minimal() + ylim(0, 200) 
+bing_transfer_pre
+
+bing_transfer_post <- ggplot(sent_transfer_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Transfer Students Post Survey") + theme_minimal() + ylim(0, 200)
+bing_transfer_post
+
+ggsave("bing_transfer_pre.png", plot = bing_transfer_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_transfer_post.png", plot = bing_transfer_post, width = 8, height = 6, units = "in", dpi = 300)
+
+```
+

@@ -1,0 +1,675 @@
+---
+title: "Sentiment Analysis Per Course"
+author: "Ashish Singh"
+date: "2024-05-23"
+output: pdf_document
+---
+
+```{r, include = FALSE}
+
+library(caTools)
+library(colorspace)
+library(dbscan)
+library(dplyr)
+library(ggfortify)
+library(ggplot2)
+library(gutenbergr)
+library(magrittr)
+library(NLP)
+library(pdftools)
+library(proxy)
+library(quanteda)
+library(quanteda.corpora)
+library(readtext)
+library(reshape2)
+library(scales)
+library(spacyr)
+library(stringr)
+library(syuzhet)
+library(text2vec)
+library(textdata)
+library(tm)
+library(tidyr)
+library(tidyverse)
+library(tidytext)
+library(topicmodels)
+library(webshot)
+library(webshot2)
+library(wordcloud)
+library(wordcloud2)
+
+```
+
+# Loading in the data
+
+```{r}
+
+old_pre <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_old_pre.csv")
+
+old_post <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_old_post.csv")
+
+new_pre <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_new_pre.csv")
+
+new_post <- read.csv("~/Documents/STATS_141XP/final_project/data/cleaned_new_post.csv")
+
+```
+
+# Identifying courses
+
+```{r}
+
+old_course <- unique(old_post$Course)
+old_course == unique(old_pre$Course) # Checking that both data sets have the same courses
+
+new_course <- unique(new_post$Course)
+new_course == unique(new_pre$Course) # Checking that both data sets have the same courses
+
+old_course
+new_course
+
+# One course is in both the new survey and old survey so we I will combine them
+
+```
+
+
+# Subsetting Text by course. (Only the course in both surveys)
+
+```{r}
+
+# Subsetting by course
+
+cesc50xp1_pre <- c(old_pre[old_pre$Course == "CESC50XP", 29], old_pre[old_pre$Course == "CESC50XP", 30]) 
+cesc50xp1_pre <- as.data.frame(cesc50xp1_pre)
+
+cesc50xp2_pre <- c(new_pre[new_pre$Course == "CESC50XP", 29], new_pre[new_pre$Course == "CESC50XP", 30])
+cesc50xp2_pre <- as.data.frame(cesc50xp2_pre)
+
+colnames(cesc50xp1_pre) <- "Line"
+colnames(cesc50xp2_pre) <- "Line"
+
+cesc50xp_pre <- rbind(cesc50xp1_pre, cesc50xp2_pre)
+
+cesc50xp1_post <- c(old_post[old_post$Course == "CESC50XP", 29], old_post[old_post$Course == "CESC50XP", 30]) 
+cesc50xp1_post <- as.data.frame(cesc50xp1_post)
+
+cesc50xp2_post <- c(new_post[new_post$Course == "CESC50XP", 29], new_post[new_post$Course == "CESC50XP", 30])
+cesc50xp2_post <- as.data.frame(cesc50xp2_post)
+
+colnames(cesc50xp1_post) <- "Line"
+colnames(cesc50xp2_post) <- "Line"
+
+cesc50xp_post <- rbind(cesc50xp1_post, cesc50xp2_post)
+
+cesc50xp_pre <- na.omit(cesc50xp_pre)
+cesc50xp_post <- na.omit(cesc50xp_post)
+
+```
+
+# Subsetting Text by course. (Course only in the old survey)
+
+```{r}
+
+# Continuing with CCAS100XP
+
+ccas100xp_pre <- c(old_pre[old_pre$Course == "CCAS100XP", 29], old_pre[old_pre$Course == "CCAS100XP", 30]) 
+ccas100xp_pre <- as.data.frame(ccas100xp_pre)
+
+ccas100xp_post <- c(old_post[old_post$Course == "CCAS100XP", 29], old_post[old_post$Course == "CCAS100XP", 30]) 
+ccas100xp_post <- as.data.frame(ccas100xp_post)
+
+colnames(ccas100xp_pre) <- "Line"
+colnames(ccas100xp_post) <- "Line"
+
+ccas100xp_pre <- na.omit(ccas100xp_pre)
+ccas100xp_post <- na.omit(ccas100xp_post)
+
+
+# Continuing with EDUC144XP
+
+educ144xp_pre <- c(old_pre[old_pre$Course == "EDUC144XP", 29], old_pre[old_pre$Course == "EDUC144XP", 30]) 
+educ144xp_pre <- as.data.frame(educ144xp_pre)
+
+educ144xp_post <- c(old_post[old_post$Course == "EDUC144XP", 29], old_post[old_post$Course == "EDUC144XP", 30]) 
+educ144xp_post <- as.data.frame(educ144xp_post)
+
+colnames(educ144xp_pre) <- "Line"
+colnames(educ144xp_post) <- "Line"
+
+educ144xp_pre <- na.omit(educ144xp_pre)
+educ144xp_post <- na.omit(educ144xp_post)
+
+
+# Continuing with CESC172XP
+
+cesc172xp_pre <- c(old_pre[old_pre$Course == "CESC172XP", 29], old_pre[old_pre$Course == "CESC172XP", 30]) 
+cesc172xp_pre <- as.data.frame(cesc172xp_pre)
+
+cesc172xp_post <- c(old_post[old_post$Course == "CESC172XP", 29], old_post[old_post$Course == "CESC172XP", 30]) 
+cesc172xp_post <- as.data.frame(cesc172xp_post)
+
+colnames(cesc172xp_pre) <- "Line"
+colnames(cesc172xp_post) <- "Line"
+
+cesc172xp_pre <- na.omit(cesc172xp_pre)
+cesc172xp_post <- na.omit(cesc172xp_post)
+
+
+```
+
+# Subsetting Text by Course. (Courses only in the New Survey) 
+
+```{r}
+
+# Continuing with DISSTD138XP
+
+disstd138xp_pre <- c(new_pre[new_pre$Course == "DISSTD138XP", 29], new_pre[new_pre$Course == "DISSTD138XP", 30]) 
+disstd138xp_pre <- as.data.frame(disstd138xp_pre)
+
+disstd138xp_post <- c(new_post[new_post$Course == "DISSTD138XP", 29], new_post[new_post$Course == "DISSTD138XP", 30]) 
+disstd138xp_post <- as.data.frame(disstd138xp_post)
+
+colnames(disstd138xp_pre) <- "Line"
+colnames(disstd138xp_post) <- "Line"
+
+disstd138xp_pre <- na.omit(disstd138xp_pre)
+disstd138xp_post <- na.omit(disstd138xp_post)
+
+
+# Continuing with DISSTDM172XP
+
+disstdm172xp_pre <- c(new_pre[new_pre$Course == "DISSTDM172XP", 29], new_pre[new_pre$Course == "DISSTDM172XP", 30]) 
+disstdm172xp_pre <- as.data.frame(disstdm172xp_pre)
+
+disstdm172xp_post <- c(new_post[new_post$Course == "DISSTDM172XP", 29], new_post[new_post$Course == "DISSTDM172XP", 30]) 
+disstdm172xp_post <- as.data.frame(disstdm172xp_post)
+
+colnames(disstdm172xp_pre) <- "Line"
+colnames(disstdm172xp_post) <- "Line"
+
+disstdm172xp_pre <- na.omit(disstdm172xp_pre)
+disstdm172xp_post <- na.omit(disstdm172xp_post)
+
+
+# Continuing with ECONM188XP
+
+econm188xp_pre <- c(new_pre[new_pre$Course == "ECONM188XP", 29], new_pre[new_pre$Course == "ECONM188XP", 30]) 
+econm188xp_pre <- as.data.frame(econm188xp_pre)
+
+econm188xp_post <- c(new_post[new_post$Course == "ECONM188XP", 29], new_post[new_post$Course == "ECONM188XP", 30]) 
+econm188xp_post <- as.data.frame(econm188xp_post)
+
+colnames(econm188xp_pre) <- "Line"
+colnames(econm188xp_post) <- "Line"
+
+econm188xp_pre <- na.omit(econm188xp_pre)
+econm188xp_post <- na.omit(econm188xp_post)
+
+
+# Continuing with ECONM188XP
+
+engcomp3dx_pre <- c(new_pre[new_pre$Course == "ENGCOMP3DX", 29], new_pre[new_pre$Course == "ENGCOMP3DX", 30]) 
+engcomp3dx_pre <- as.data.frame(engcomp3dx_pre)
+
+engcomp3dx_post <- c(new_post[new_post$Course == "ENGCOMP3DX", 29], new_post[new_post$Course == "ENGCOMP3DX", 30]) 
+engcomp3dx_post <- as.data.frame(engcomp3dx_post)
+
+colnames(engcomp3dx_pre) <- "Line"
+colnames(engcomp3dx_post) <- "Line"
+
+engcomp3dx_pre <- na.omit(engcomp3dx_pre)
+engcomp3dx_post <- na.omit(engcomp3dx_post)
+
+
+```
+
+# Creating the Tidy's
+
+```{r}
+
+tidy_cesc50xp_pre <- cesc50xp_pre %>%
+  unnest_tokens(word, Line) %>% # Taking the responses and giving each word its own row
+  anti_join(stop_words) # Removing stop words (Stop words: commonly used words that ruin the data/plots due to their frequent usage Ex. The, it , are, etc.)
+
+tidy_cesc50xp_post <- cesc50xp_post %>% # Repeating process for the rest of the subsets
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# Next course
+
+tidy_ccas100xp_pre <- ccas100xp_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_ccas100xp_post <- ccas100xp_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# Next course
+
+tidy_educ144xp_pre <- educ144xp_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_educ144xp_post <- educ144xp_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# Next course
+
+tidy_cesc172xp_pre <- cesc172xp_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_cesc172xp_post <- cesc172xp_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# Next course
+
+tidy_disstd138xp_pre <- disstd138xp_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_disstd138xp_post <- disstd138xp_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# Next course
+
+tidy_disstdm172xp_pre <- disstdm172xp_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_disstdm172xp_post <- disstdm172xp_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# Next course
+
+tidy_econm188xp_pre <- econm188xp_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_econm188xp_post <- econm188xp_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+# Next course
+
+tidy_engcomp3dx_pre <- engcomp3dx_pre %>%
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words) 
+
+tidy_engcomp3dx_post <- engcomp3dx_post %>% 
+  unnest_tokens(word, Line) %>% 
+  anti_join(stop_words)
+
+```
+
+# nrc Sentiments
+
+```{r}
+
+nrc <- get_sentiments("nrc") # Importing nrc emotion lexicon
+
+sent_cesc50xp_pre <- nrc %>% 
+  inner_join(tidy_cesc50xp_pre, by = "word", relationship = "many-to-many") %>% # Assign emotion to each word by inner joining (Drawing columns from each data frame and combing on the word column)
+  count(sentiment) # Sum of the emotions to develop plots
+
+sent_cesc50xp_post <- nrc %>%
+  inner_join(tidy_cesc50xp_post, by = "word", relationship = "many-to-many") %>% # Repeating process for all subsets
+  count(sentiment)
+
+# Next Course
+
+sent_ccas100xp_pre <- nrc %>% 
+  inner_join(tidy_ccas100xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_ccas100xp_post <- nrc %>%
+  inner_join(tidy_ccas100xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_educ144xp_pre <- nrc %>% 
+  inner_join(tidy_educ144xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_educ144xp_post <- nrc %>%
+  inner_join(tidy_educ144xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_cesc172xp_pre <- nrc %>% 
+  inner_join(tidy_cesc172xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_cesc172xp_post <- nrc %>%
+  inner_join(tidy_cesc172xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_disstd138xp_pre <- nrc %>% 
+  inner_join(tidy_disstd138xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_disstd138xp_post <- nrc %>%
+  inner_join(tidy_disstd138xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_disstdm172xp_pre <- nrc %>% 
+  inner_join(tidy_disstdm172xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_disstdm172xp_post <- nrc %>%
+  inner_join(tidy_disstdm172xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_econm188xp_pre <- nrc %>% 
+  inner_join(tidy_econm188xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_econm188xp_post <- nrc %>%
+  inner_join(tidy_econm188xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_engcomp3dx_pre <- nrc %>% 
+  inner_join(tidy_engcomp3dx_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_engcomp3dx_post <- nrc %>%
+  inner_join(tidy_engcomp3dx_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+
+```
+
+# nrc Plots
+
+```{r}
+
+# Creating the sentiment plots
+
+nrc_cesc50xp_pre <- ggplot(sent_cesc50xp_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The CESC50XP Pre Survey") + theme_minimal() + ylim(0, 1500) # Uniform scale for plots that are comparable.
+nrc_cesc50xp_pre
+
+nrc_cesc50xp_post <- ggplot(sent_cesc50xp_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The CESC50XP Post Survey") + theme_minimal() + ylim(0, 1500)
+nrc_cesc50xp_post
+
+ggsave("nrc_cesc50xp_pre.png", plot = nrc_cesc50xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_cesc50xp_post.png", plot = nrc_cesc50xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+nrc_ccas100xp_pre <- ggplot(sent_ccas100xp_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The CCAS100XP Pre Survey") + theme_minimal() + ylim(0, 500) # Uniform scale for plots that are comparable.
+nrc_ccas100xp_pre
+
+nrc_ccas100xp_post <- ggplot(sent_ccas100xp_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The CCAS100XP Post Survey") + theme_minimal() + ylim(0, 500)
+nrc_ccas100xp_post
+
+ggsave("nrc_ccas100xp_pre.png", plot = nrc_ccas100xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_ccas100xp_post.png", plot = nrc_ccas100xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+nrc_educ144xp_pre <- ggplot(sent_educ144xp_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The EDUC144XP Pre Survey") + theme_minimal() + ylim(0, 200) # Uniform scale for plots that are comparable.
+nrc_educ144xp_pre
+
+nrc_educ144xp_post <- ggplot(sent_educ144xp_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The EDUC144XP Post Survey") + theme_minimal() + ylim(0, 200)
+nrc_educ144xp_post
+
+ggsave("nrc_educ144xp_pre.png", plot = nrc_educ144xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_ceduc144xp_post.png", plot = nrc_educ144xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+nrc_cesc172xp_pre <- ggplot(sent_cesc172xp_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The CESC172XP Pre Survey") + theme_minimal() + ylim(0, 300) # Uniform scale for plots that are comparable.
+nrc_cesc172xp_pre
+
+nrc_cesc172xp_post <- ggplot(sent_cesc172xp_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The CESC172XP Post Survey") + theme_minimal() + ylim(0, 300)
+nrc_cesc172xp_post
+
+ggsave("nrc_cesc172xp_pre.png", plot = nrc_cesc172xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_cesc172xp_post.png", plot = nrc_cesc172xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+nrc_disstd138xp_pre <- ggplot(sent_disstd138xp_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The DISSTD138XP Pre Survey") + theme_minimal() + ylim(0, 250) # Uniform scale for plots that are comparable.
+nrc_disstd138xp_pre
+
+nrc_disstd138xp_post <- ggplot(sent_disstd138xp_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The DISSTD138XP Post Survey") + theme_minimal() + ylim(0, 250)
+nrc_disstd138xp_post
+
+ggsave("nrc_disstd138xp_pre.png", plot = nrc_disstd138xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_disstd138xp_post.png", plot = nrc_disstd138xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+nrc_disstdm172xp_pre <- ggplot(sent_disstdm172xp_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The DISSTDM172XP Pre Survey") + theme_minimal() + ylim(0, 150) # Uniform scale for plots that are comparable.
+nrc_disstdm172xp_pre
+
+nrc_disstdm172xp_post <- ggplot(sent_disstdm172xp_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The DISSTDM172XP Post Survey") + theme_minimal() + ylim(0, 150)
+nrc_disstdm172xp_post
+
+ggsave("nrc_disstdm172xp_pre.png", plot = nrc_disstdm172xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_disstdm172xp_post.png", plot = nrc_disstdm172xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+nrc_econm188xp_pre <- ggplot(sent_econm188xp_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The ECONM188XP Pre Survey") + theme_minimal() + ylim(0, 50) # Uniform scale for plots that are comparable.
+nrc_econm188xp_pre
+
+nrc_econm188xp_post <- ggplot(sent_econm188xp_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The ECONM188XP Post Survey") + theme_minimal() + ylim(0, 50)
+nrc_econm188xp_post
+
+ggsave("nrc_econm188xp_pre.png", plot = nrc_econm188xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_econm188xp_post.png", plot = nrc_econm188xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+nrc_engcomp3dx_pre <- ggplot(sent_engcomp3dx_pre, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The ENGCOMP3DX Pre Survey") + theme_minimal() + ylim(0, 250) # Uniform scale for plots that are comparable.
+nrc_engcomp3dx_pre
+
+nrc_engcomp3dx_post <- ggplot(sent_engcomp3dx_post, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "NRC Sentiments for The ENGCOMP3DX Post Survey") + theme_minimal() + ylim(0, 250)
+nrc_engcomp3dx_post
+
+ggsave("nrc_engcomp3dx_pre.png", plot = nrc_engcomp3dx_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("nrc_engcomp3dx_post.png", plot = nrc_engcomp3dx_post, width = 8, height = 6, units = "in", dpi = 300)
+
+```
+
+# Bing Sentiments
+
+```{r}
+
+bing <- get_sentiments("bing") # Importing bing emotion lexicon
+
+sent_cesc50xp_pre2 <- bing %>% 
+  inner_join(tidy_cesc50xp_pre, by = "word", relationship = "many-to-many") %>% # Assign emotion to each word by inner joining (Drawing columns from each data frame and combing on the word column)
+  count(sentiment) # Sum of the emotions to develop plots
+
+sent_cesc50xp_post2 <- bing %>%
+  inner_join(tidy_cesc50xp_post, by = "word", relationship = "many-to-many") %>% # Repeating process for all subsets
+  count(sentiment)
+
+# Next Course
+
+sent_ccas100xp_pre2 <- bing %>% 
+  inner_join(tidy_ccas100xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_ccas100xp_post2 <- bing %>%
+  inner_join(tidy_ccas100xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_educ144xp_pre2 <- bing %>% 
+  inner_join(tidy_educ144xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_educ144xp_post2 <- bing %>%
+  inner_join(tidy_educ144xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_cesc172xp_pre2 <- bing %>% 
+  inner_join(tidy_cesc172xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_cesc172xp_post2 <- bing %>%
+  inner_join(tidy_cesc172xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_disstd138xp_pre2 <- bing %>% 
+  inner_join(tidy_disstd138xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_disstd138xp_post2 <- bing %>%
+  inner_join(tidy_disstd138xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_disstdm172xp_pre2 <- bing %>% 
+  inner_join(tidy_disstdm172xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_disstdm172xp_post2 <- bing %>%
+  inner_join(tidy_disstdm172xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_econm188xp_pre2 <- bing %>% 
+  inner_join(tidy_econm188xp_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_econm188xp_post2 <- bing %>%
+  inner_join(tidy_econm188xp_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+# Next Course
+
+sent_engcomp3dx_pre2 <- bing %>% 
+  inner_join(tidy_engcomp3dx_pre, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment) 
+
+sent_engcomp3dx_post2 <- bing %>%
+  inner_join(tidy_engcomp3dx_post, by = "word", relationship = "many-to-many") %>% 
+  count(sentiment)
+
+
+```
+
+# Bing Plots
+
+```{r}
+
+# Creating the sentiment plots
+
+bing_cesc50xp_pre <- ggplot(sent_cesc50xp_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The CESC50XP Pre Survey") + theme_minimal() + ylim(0, 500) # Uniform scale for plots that are comparable.
+bing_cesc50xp_pre
+
+bing_cesc50xp_post <- ggplot(sent_cesc50xp_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The CESC50XP Post Survey") + theme_minimal() + ylim(0, 500)
+bing_cesc50xp_post
+
+ggsave("bing_cesc50xp_pre.png", plot = bing_cesc50xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_cesc50xp_post.png", plot = bing_cesc50xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+bing_ccas100xp_pre <- ggplot(sent_ccas100xp_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The CCAS100XP Pre Survey") + theme_minimal() + ylim(0, 250) # Uniform scale for plots that are comparable.
+bing_ccas100xp_pre
+
+bing_ccas100xp_post <- ggplot(sent_ccas100xp_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The CCAS100XP Post Survey") + theme_minimal() + ylim(0, 250)
+bing_ccas100xp_post
+
+ggsave("bing_ccas100xp_pre.png", plot = bing_ccas100xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_ccas100xp_post.png", plot = bing_ccas100xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+bing_educ144xp_pre <- ggplot(sent_educ144xp_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The EDUC144XP Pre Survey") + theme_minimal() + ylim(0, 100) # Uniform scale for plots that are comparable.
+bing_educ144xp_pre
+
+bing_educ144xp_post <- ggplot(sent_educ144xp_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The EDUC144XP Post Survey") + theme_minimal() + ylim(0, 100)
+bing_educ144xp_post
+
+ggsave("bing_educ144xp_pre.png", plot = bing_educ144xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_ceduc144xp_post.png", plot = bing_educ144xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+bing_cesc172xp_pre <- ggplot(sent_cesc172xp_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The CESC172XP Pre Survey") + theme_minimal() + ylim(0, 100) # Uniform scale for plots that are comparable.
+bing_cesc172xp_pre
+
+bing_cesc172xp_post <- ggplot(sent_cesc172xp_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The CESC172XP Post Survey") + theme_minimal() + ylim(0, 100)
+bing_cesc172xp_post
+
+ggsave("bing_cesc172xp_pre.png", plot = bing_cesc172xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_cesc172xp_post.png", plot = bing_cesc172xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+bing_disstd138xp_pre <- ggplot(sent_disstd138xp_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The DISSTD138XP Pre Survey") + theme_minimal() + ylim(0, 100) # Uniform scale for plots that are comparable.
+bing_disstd138xp_pre
+
+bing_disstd138xp_post <- ggplot(sent_disstd138xp_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The DISSTD138XP Post Survey") + theme_minimal() + ylim(0, 100)
+bing_disstd138xp_post
+
+ggsave("bing_disstd138xp_pre.png", plot = bing_disstd138xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_disstd138xp_post.png", plot = bing_disstd138xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+bing_disstdm172xp_pre <- ggplot(sent_disstdm172xp_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The DISSTDM172XP Pre Survey") + theme_minimal() + ylim(0, 50) # Uniform scale for plots that are comparable.
+bing_disstdm172xp_pre
+
+bing_disstdm172xp_post <- ggplot(sent_disstdm172xp_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The DISSTDM172XP Post Survey") + theme_minimal() + ylim(0, 50)
+bing_disstdm172xp_post
+
+ggsave("bing_disstdm172xp_pre.png", plot = bing_disstdm172xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_disstdm172xp_post.png", plot = bing_disstdm172xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+bing_econm188xp_pre <- ggplot(sent_econm188xp_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The ECONM188XP Pre Survey") + theme_minimal() + ylim(0, 25) # Uniform scale for plots that are comparable.
+bing_econm188xp_pre
+
+bing_econm188xp_post <- ggplot(sent_econm188xp_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The ECONM188XP Post Survey") + theme_minimal() + ylim(0, 25)
+bing_econm188xp_post
+
+ggsave("bing_econm188xp_pre.png", plot = bing_econm188xp_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_econm188xp_post.png", plot = bing_econm188xp_post, width = 8, height = 6, units = "in", dpi = 300)
+
+# Next Course
+
+bing_engcomp3dx_pre <- ggplot(sent_engcomp3dx_pre2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The ENGCOMP3DX Pre Survey") + theme_minimal() + ylim(0, 100) # Uniform scale for plots that are comparable.
+bing_engcomp3dx_pre
+
+bing_engcomp3dx_post <- ggplot(sent_engcomp3dx_post2, aes(x = sentiment, y = n, fill = sentiment)) + geom_bar(stat = "identity") + labs(title = "Bing Sentiments for The ENGCOMP3DX Post Survey") + theme_minimal() + ylim(0, 100)
+bing_engcomp3dx_post
+
+ggsave("bing_engcomp3dx_pre.png", plot = bing_engcomp3dx_pre, width = 8, height = 6, units = "in", dpi = 300)
+ggsave("bing_engcomp3dx_post.png", plot = bing_engcomp3dx_post, width = 8, height = 6, units = "in", dpi = 300)
+
+```
+
+
+
+
+
+

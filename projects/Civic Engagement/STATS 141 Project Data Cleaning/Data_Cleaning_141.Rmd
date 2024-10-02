@@ -1,0 +1,582 @@
+---
+title: "Data_Cleaning_141"
+output: pdf_document
+date: "2024-05-15"
+---
+### Loading the data
+```{r message = FALSE, warning = FALSE}
+library(readr)
+library(dplyr)
+library(stringr)
+old_pre <- read_csv("old_pre.csv")
+old_post <- read_csv("old_post.csv")
+new_pre <- read_csv("new_pre.csv")
+new_post <- read_csv("new_post.csv")
+```
+
+### Removing inessential columns such as timestamp, date of survey, last name, minor, extra elaboration on gender identity, and name of the community partner organization
+```{r}
+old_pre <- old_pre[,-c(1, 2, 4, 7, 9)]
+old_post <- old_post[, -c(1, 2, 4, 7, 9)]
+new_pre <- new_pre[,-c(1, 2, 6, 8)]
+new_post <- new_post[, -c(1, 2, 5, 7, 9)]
+```
+
+### Renaming Columns
+```{r}
+names(old_pre) <- c("ID", "Course", "Major", "Gender", "Ethnicity", "First_Gen", "Mother_Edu", "Father_Edu", "Transfer", "GPA", "Academic_Confidence", "Sense_Belonging", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Text1", "Text2")
+names(old_post) <- c("ID", "Course", "Major", "Gender", "Ethnicity", "First_Gen", "Mother_Edu", "Father_Edu", "Transfer", "GPA", "Academic_Confidence", "Sense_Belonging", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Text1", "Text2")
+names(new_pre) <- c("ID", "Course", "Major", "Gender", "Ethnicity", "First_Gen", "Mother_Edu", "Father_Edu", "Transfer", "GPA", "Academic_Confidence", "Sense_Belonging", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Text1", "Text2")
+names(new_post) <- c("ID", "Course", "Major", "Gender", "Ethnicity", "First_Gen", "Mother_Edu", "Father_Edu", "Transfer", "GPA", "Academic_Confidence", "Sense_Belonging", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Text1", "Text2")
+```
+
+### Removing the observations with duplicate ID numbers
+```{r}
+duplicate_ids_old_pre <- old_pre$ID[duplicated(old_pre$ID) | duplicated(old_pre$ID, fromLast = TRUE)]
+duplicate_ids_old_post <- old_post$ID[duplicated(old_post$ID) | duplicated(old_post$ID, fromLast = TRUE)]
+duplicate_ids_new_pre <- new_pre$ID[duplicated(new_pre$ID) | duplicated(new_pre$ID, fromLast = TRUE)]
+duplicate_ids_new_post <- new_post$ID[duplicated(new_post$ID) | duplicated(new_post$ID, fromLast = TRUE)]
+
+old_pre <- old_pre[!old_pre$ID %in% duplicate_ids_old_pre, ]
+old_post <- old_post[!old_post$ID %in% duplicate_ids_old_post, ]
+new_pre <- new_pre[!new_pre$ID %in% duplicate_ids_new_pre, ]
+new_post <- new_post[!new_post$ID %in% duplicate_ids_new_post, ]
+```
+
+### Getting rid of the observations whose IDs are NA and observations whose IDs aren't in both the pre_data and the post_data
+```{r}
+# old data
+old_pre <- old_pre[!is.na(old_pre$ID), ]
+old_post <- old_post[!is.na(old_post$ID), ]
+
+ID_old_post <- c()
+ID_old_pre <- c()
+for(i in 1:length(old_pre$ID)){
+  for(j in 1:length(old_post$ID)){
+    if(old_pre$ID[i] == old_post$ID[j]){
+      ID_old_post <- c(ID_old_post, j)
+      ID_old_pre <- c(ID_old_pre, i)
+    }
+  }
+}
+
+# new data
+new_pre <- new_pre[!is.na(new_pre$ID), ]
+new_post <- new_post[!is.na(new_post$ID), ]
+
+ID_new_post <- c()
+ID_new_pre <- c()
+for(i in 1:length(new_pre$ID)){
+  for(j in 1:length(new_post$ID)){
+    if(new_pre$ID[i] == new_post$ID[j]){
+      ID_new_post <- c(ID_new_post, j)
+      ID_new_pre <- c(ID_new_pre, i)
+    }
+  }
+}
+
+# keeping the ones that have matching IDs in both pre & post
+old_post <- old_post[ID_old_post,]
+old_pre <- old_pre[ID_old_pre,]
+new_post <- new_post[ID_new_post,]
+new_pre <- new_pre[ID_new_pre,]
+new_pre <- new_pre[new_pre$ID != 2794, ]
+new_post <- new_post[new_post$ID != 2794, ]
+```
+
+
+### Replacing the NA values in the questions with ranking responses with the median values for each of them
+```{r}
+# old data
+columns_with_ranking <- c("Academic_Confidence", "Sense_Belonging", paste0("Q", 1:15))
+old_post[columns_with_ranking] <- lapply(old_post[columns_with_ranking], function(x) {
+  x[is.na(x)] <- median(x, na.rm = TRUE)
+  return(x)
+})
+
+old_pre[columns_with_ranking] <- lapply(old_pre[columns_with_ranking], function(x) {
+  x[is.na(x)] <- median(x, na.rm = TRUE)
+  return(x)
+})
+
+# new data
+new_post[columns_with_ranking] <- lapply(new_post[columns_with_ranking], function(x) {
+  x[is.na(x)] <- median(x, na.rm = TRUE)
+  return(x)
+})
+
+new_pre[columns_with_ranking] <- lapply(new_pre[columns_with_ranking], function(x) {
+  x[is.na(x)] <- median(x, na.rm = TRUE)
+  return(x)
+})
+```
+
+### Cleaning up the "Course" variable
+```{r}
+# old data
+replacements <- list(
+  "CCAS100XP" = c("23S-CCAS 100XP", "CCAS 100XP", "CCAS 100xp", "ccas100xp", "CCAS100XP, CCAS143, CCASM173, PSYCH137C", "CCAS100XP"),
+  "CESC50XP" = c("CECS50XP", "CESC 50XP", "CSEC50XP", "Community Engagement and Social Change, CESC50XP", "CESC50XP, PhySci111B, MCDB60, PhySci199, LS192B PhySci189, LS", "Center for Community Engagement, CESC50XP", "23S-CESC-50XP-LEC-1", "CECS50XP", "CESC50XP"),
+  "CESC172XP" = c("CESC 172XP", "CSEC 172xp", "PHYSCI5, ANTHRO2, PHYSICS5B, CESC172XP", "CESC 172XP, CESC 191BX, Neuro M116A", "CESC172XP"),
+  "EDUC144XP" = c("EDUC 144XP", "Educ144XP", "EDUCATION 144XP: PEDAGOGIES OF GLOBAL CITIZENSHIP EDUCATION", "EDUC144XP EDUC130AX INFSTD180", "EDUC144XP", "PHYSCI5, ANTHRO2, PHYSICS5B, CESC172XP")
+)
+for (new_value in names(replacements)) {
+  old_pre$Course[old_pre$Course %in% replacements[[new_value]]] <- new_value
+}
+
+
+replacements_2 <- list(
+  "CCAS100XP" = c("23S-CCAS-100XP", "23S-CCAS100XP", "CCAS 100xp", "CCAS 100XP", "CCAS100XP", "CCAS100XPSEM1"),
+  "CESC50XP" = c("23SCESC50XP", "cesc 50xp", "CESC 50XP", "CESC-50XP", "CESC50XO=P", "CESC50xp", "CESC50XP"),
+  "CESC172XP" = c("CESC 172 xp", "CESC 172XP", "CESC-172XP", "CESC172XP", "CESC172XR"),
+  "EDUC144XP" = c("144 XP", "EDUC 144XP", "EDUC144 XP", "Educ144XP", "EDUC144XP")
+)
+for (new_value in names(replacements_2)) {
+  old_post$Course[old_post$Course %in% replacements_2[[new_value]]] <- new_value
+}
+
+# new data
+new_pre <- new_pre %>% filter(Course != "ED130AX")
+replacements_3 <- list(
+  "CESC191AX" = "CESC191AX",
+  "ENGCOMP3DX" = c("ENGCOMP3DX", "CESC3DX"),
+  "CESC50XP" = "CESC50XP",
+  "DISSTD138XP" = "DISSTD138XP",
+  "DISSTDM172XP" = "DISSTDM172XP",
+  "ECONM188XP" = "ECONM188XP"
+  )
+for (new_value in names(replacements_3)) {
+  new_pre$Course[new_pre$Course %in% replacements_3[[new_value]]] <- new_value
+}
+
+replacements_4 <- list(
+  "ENGCOMP3DX" = "ENGCOMP3DX",
+  "CESC50XP" = c("CESC 50XP", "CESC50xp", "CESC50XP"),
+  "DISSTD138XP" = "DISSTD138XP",
+  "DISSTDM172XP" = c("DISSTDM172XP", "DISSTD M172XP"),
+  "ECONM188XP" = "ECONM188XP"
+  )
+for (new_value in names(replacements_4)) {
+  new_post$Course[new_post$Course %in% replacements_4[[new_value]]] <- new_value
+}
+```
+
+### Cleaning up the "Ethnicity" variable
+```{r}
+# old data
+replacements_5 <- list(
+  "Asian / Pacific Islander" = "Asian / Pacific Islander",
+  "Hispanic/Latinx" = "Hispanic/Latinx",
+  "White" = "White",
+  "Black or African American" = "Black or African American",
+  "Multiple Ethnicity / Other" = c("American Indian or Alaskan Native, Hispanic/Latinx", "Asian / Pacific Islander, Black or African American, Hispanic/Latinx", "Asian / Pacific Islander, Hispanic/Latinx, White", "Asian / Pacific Islander, White", "Asian / Pacific Islander, White, Multiple Ethnicity / Other", "Black or African American, Hispanic/Latinx", "Black or African American, White, Multiple Ethnicity / Other", "Hispanic/Latinx, White", "Hispanic/Latinx, White, Multiple Ethnicity / Other", "Multiple Ethnicity / Other", "White, Multiple Ethnicity / Other")
+  
+)
+for (new_value in names(replacements_5)) {
+  old_pre$Ethnicity[old_pre$Ethnicity %in% replacements_5[[new_value]]] <- new_value
+}
+
+replacements_6 <- list(
+  "Asian / Pacific Islander" = "Asian / Pacific Islander",
+  "Hispanic/Latinx" = "Hispanic/Latinx",
+  "White" = "White",
+  "Black or African American" = "Black or African American",
+  "Multiple Ethnicity / Other" = c("American Indian or Alaskan Native;Hispanic/Latinx", "American Indian or Alaskan Native;Hispanic/Latinx;Multiple Ethnicity / Other", "Asian / Pacific Islander;Black or African American;Hispanic/Latinx", "Asian / Pacific Islander;Hispanic/Latinx;White", "Asian / Pacific Islander;White", "Asian / Pacific Islander;White;Multiple Ethnicity / Other", "Black or African American;Hispanic/Latinx", "Black or African American;White", "Black or African American;White;Multiple Ethnicity / Other", "Hispanic/Latinx;White", "Hispanic/Latinx;White;Multiple Ethnicity / Other", "Multiple Ethnicity / Other")
+  
+)
+for (new_value in names(replacements_6)) {
+  old_post$Ethnicity[old_post$Ethnicity %in% replacements_6[[new_value]]] <- new_value
+}
+
+# new data
+replacements_7 <- list(
+  "Asian / Pacific Islander" = "Asian / Pacific Islander",
+  "Hispanic/Latinx" = "Hispanic/Latinx",
+  "White" = "White",
+  "Black or African American" = "Black or African American",
+  "Multiple Ethnicity / Other" = c("Asian / Pacific Islander, Black or African American", "Asian / Pacific Islander, Black or African American, White, Multiple Ethnicity / Other", "Asian / Pacific Islander, Hispanic/Latinx", "Asian / Pacific Islander, Hispanic/Latinx, White, Multiple Ethnicity / Other", "Asian / Pacific Islander, White", "Asian / Pacific Islander, White, Multiple Ethnicity / Other", "Black or African American, Hispanic/Latinx", "Black or African American, White", "Hispanic/Latinx, White", "Hispanic/Latinx, White, Multiple Ethnicity / Other", "Multiple Ethnicity / Other", "White, Multiple Ethnicity / Other")
+  
+)
+for (new_value in names(replacements_7)) {
+  new_pre$Ethnicity[new_pre$Ethnicity %in% replacements_7[[new_value]]] <- new_value
+}
+
+replacements_8 <- list(
+  "Asian / Pacific Islander" = "Asian / Pacific Islander",
+  "Hispanic/Latinx" = "Hispanic/Latinx",
+  "White" = "White",
+  "Black or African American" = "Black or African American",
+  "Multiple Ethnicity / Other" = c("Asian / Pacific Islander, Hispanic/Latinx", "Asian / Pacific Islander, Hispanic/Latinx, White, Multiple Ethnicity / Other", "Asian / Pacific Islander, Multiple Ethnicity / Other", "Asian / Pacific Islander, White", "Asian / Pacific Islander, White, Multiple Ethnicity / Other", "Black or African American, Hispanic/Latinx, Multiple Ethnicity / Other", "Black or African American, White, Multiple Ethnicity / Other", "Hispanic/Latinx, White", "Hispanic/Latinx, White, Multiple Ethnicity / Other", "Multiple Ethnicity / Other", "White, Multiple Ethnicity / Other")
+  
+)
+for (new_value in names(replacements_8)) {
+  new_post$Ethnicity[new_post$Ethnicity %in% replacements_8[[new_value]]] <- new_value
+}
+
+levels <- c("Asian / Pacific Islander", "Hispanic/Latinx", "White", "Black or African American", "Multiple Ethnicity / Other")
+
+old_pre$Ethnicity <- factor(old_pre$Ethnicity, levels = levels)
+old_post$Ethnicity <- factor(old_post$Ethnicity, levels = levels)
+new_pre$Ethnicity <- factor(new_pre$Ethnicity, levels = levels)
+new_post$Ethnicity <- factor(new_post$Ethnicity, levels = levels)
+```
+
+### Categorizing the "Major" variable into "North Campus" and "South Campus"
+```{r}
+replacements_9 <- list(
+  "North Campus" = c(
+    "American literature and culture",
+    "Anthropology B.S.",
+    "Applied Linguistics", 
+    "American Literature and Culture",
+    "Art",                                               
+    "Art History", 
+    "Architectural Studies",
+    "Business Econ",
+    "Business Economics",
+    "Business Economic",
+    "Business economics",
+    "BUSINESS ECONOMICS",
+    "Business economics and statistics and data science",
+    "Business Economics, Cognitive Science",             
+    "Business-economics",                                
+    "Business-Economics",
+    "Business Economics & Education",                    
+    "Business Economics and Psychology",
+    "Business Economics (switching to Cognitive Science)",
+    "Business Economics; Education and Social Transformation",
+    "bus econ",
+    "Bus/Econ",
+    "CCAS",
+    "Chicana & Chicano Studies",
+    "Chicana and Chicano Studies",
+    "Chicano, Chicana, and Central American Studies",
+    "Chicana/o and Central American Studies",
+    "chicana/o and central american studies \\ anthropology",
+    "Chicana/o Studies",
+    "Chicana/o Studies & Political Science",
+    "Chicana/o Studies Major",
+    "Chicana/o studies and Sociology",
+    "Chicano Studies",
+    "Chicano Studies & Sociology double major",
+    "Chicanx Studies",
+    "Chicanx and Central American Studies",
+    "China/o Studies",
+    "Chicano/a Studies",
+    "Chicano/a Studies major",
+    "chicano stuides",
+    "Chican@ Studies",
+    "Communication",
+    "communication", 
+    "Communications",
+    "Comparative Literature",
+    "Design Media Arts",
+    "DesignMediaArts",
+    "Disability Studies and Public Affairs",
+    "Econ",
+    "ECON",
+    "Economics",
+    "Economcis",
+    "ECONOMICS",
+    "Education",
+    "Econ, Psych",
+    "Environmental Science",                            
+    "Fine Art",
+    "Disability Studies and Public Affairs",             
+    "Ecology, Behavior, and Evolution",
+    "EDUCATION AND SOCIAL TRANSFORMATION,",
+    "Education & Social Transformation / Public Affairs",
+    "Education and social transformation",
+    "Education and Social Transformation",
+    "Education and Social Transformation and Chicano/a Studies",
+    "Education and Social Transformation & Business Economics",
+    "Education and Social Transformation, Chicano/a Studies",
+    "EDUCATION AND SOCIAL TRANSFORMATION",
+    "Education and Social Transformation",
+    "Economics and Environmental Science",
+    "Economics and Public Affairs",
+    "English",
+    "Ethnomusicology",
+    "English and Chicano Studies",
+    "Geography",
+    "Geography + Chicano Studies",
+    "Geography and Chicano Studies",
+    "Global Jazz Studies",
+    "global studies",
+    "History",
+    "Global Studies",
+    "Labor Studies",
+    "labor studies & chicano/a and central american studies",
+    "Labor Studies and Chincao Studies",
+    "Labor studies & Chicano studies",
+    "Political science",
+    "Political Science",
+    "Political Science and CCAS",
+    "Political Science and Economics",
+    "Political Science and Spanish",
+    "Political Science, Psychology",
+    "pre Business Economic",
+    "Political Science and Chicana/o Studies",
+    "Political Science and Chicano Studies",
+    "Political science and psychology",
+    "Political Science, Spanish",
+    "Pre-Political Science",
+    "Pre-Sociology",
+    "psychology",
+    "Psych",
+    "Psychology",
+    "Psychology and Sociology",
+    "Psychology but switching to Statistics",
+    "psychology",                                        
+    "Psychology",                                        
+    "Psychology and Disability Studies",                 
+    "Public Affairs",                                    
+    "Public Affiars" ,                                   
+    "sociology",
+    "Sociology",
+    "Sociology and ccas",
+    "Sociology/Spanish",
+    "Sociology and CCAS",                                                          
+    "Sociology, Psychology",
+    "Spanish Community and Culture",
+    "Socioloy (currently still pre-business econ but I am switching next quarter)",
+    "Theater",
+    "Theatre",
+    "World Arts and Culture",
+    "Chican@ Studies",
+    "Chicano, Chicana, and Central American Studies",
+    "Chicanx and Central American Studies",
+    "Communications",
+    "ECON",
+    "Economcis",
+    "Education",
+    "Education and Social Transformation & Business Economics",
+    "Education and Social Transformation, Chicano/a Studies",
+    "Geography and Chicano Studies",
+    "Political Science & Chicano Studies",
+    "Political Science",
+    "Political Science and Chicana/o Studies",                                     
+    "Political Science and Chicano Studies",
+    "Political Science and Psychology",
+    "Political Science, Spanish: Community and Service",
+    "Political Sciene/ CCAS",
+    "Political Science, Spanish: Community and Service",
+    "Political science",
+    "Political Science and Sociology",                   
+    "Political Science, Psychology",                     
+    "Political Science/Communications",
+    "Undeclared - Social Sciences",
+    "Pre-Political Science",
+    "Pre-Sociology",
+    "Pre-Psychology",
+    "IDS",                                               
+    "Labor Studies",                                     
+    "Linguistics and Anthropology", 
+    "Public Affairs" ,
+    "Public Affairs and Education & Social Transformation",
+    "Pre business economics",
+    "Pre Political Science",                           
+    "Pre-business economics",                          
+    "Pre-Economics" ,        
+    "Pre Business Economics", 
+    "Buisness Economics",
+    "Pre- Business Economics",                           
+    "Pre-business econ",                                 
+    "pre-education",                                     
+    "psychology",                                
+    "Pre-psychology",                                    
+    "Pre-Public Affairs",                                
+    "Psych",
+    "psych",
+    "Sociology, Psychology",
+    "Socioloy (currently still pre-business econ but I am switching next quarter)"),
+
+  "South Campus" = c(
+    "Aerospace Engineering",
+    "Applied Maths & Statistics",
+    "Astrophysics",
+    "biochemistry",
+    "biochem",
+    "Biochem",
+    "Biochemistry",
+    "Bioengineering",
+    "Biology",
+    "Biophysics",
+    "cognitive science",
+    "Cognitive science",
+    "Cognitive Science",
+    "cognitive science & public affairs",                
+    "Cognitive Science and Philosophy",
+    "Civil Engineering",                                 
+    "Cognitive Science",
+    "Computer Science",
+    "Computational and Systems Biology",                
+    "Computational Systems and Biology",
+    "Computer Science & Engineering",
+    "Computer Science and Engineering",
+    "Chemistry",
+    "Data Theory",
+    "Ecology Behavior and Evolution",
+    "Ecology, Behavior, and Evolution",
+    "Economics and Statistics & Data Science",
+    "Human Biology and Society",
+    "Human Biology & Society",
+    "Human Biology and Society B.S.",
+    "HBS",                                               
+    "Human Biology & Society", 
+    "human biology and society",
+    "Human Biology and Society",                        
+    "Human Biology and Society (BS)", 
+    "Math/Econ",
+    "Mathematics and Economics",
+    "Mathematics of Computation"  ,
+    "Mathematics/Economics",
+    "MCDB",
+    "MCDB (Molecular, Cell, Developmental Biology)",
+    "Mechanical Engineering",
+    "Microbiology, Immunology, and Molecular Genetics",
+    "Microbiology, Immunology & Molecular Genetics",
+    "MIMG",
+    "Molecular cell and developmental biology",
+    "Molecular Cell and Developmental Biology (MCDB)",
+    "Molecular, Cell and Developmental Biology",
+    "Molecular, Cell, and Developmental Biology",
+    "Molecular, Cell, and Developmental Biology B.S.",
+    "Molecular, Cell, and Developmental Biology",
+    "Molecular, Cell, Developmental Biology",
+    "Molecular, Cellular and Developmental Biology",
+    "Neuroscience",
+    "Neuroscience, B.S.",
+    "Nursing",
+    "Physics",
+    "Physics BS",
+    "Physiological science",
+    "Physiology",
+    "Physiological Science",
+    "Physiological Sciences",
+    "Pre HBS",
+    "pre Human Biology and Society",
+    "Pre-applied Mathematics",
+    "pre-human biology and society (b.s)",
+    "Psychobiology",
+    "Pre Data Theory",
+    "Pre-psychobiology",
+    "Pre-psychobiology",
+    "Materials science engineering",                     
+    "Math and Economics",                                
+    "Math of Computation",                               
+    "Math/Econ",  
+    "Math",
+    "Math Econ",
+    "Mathematics",                                       
+    "Mathematics of Computation",                        
+    "Mathematics/Economics",                             
+    "MCDB",                                              
+    "Mechanical Engineering",                            
+    "Microbiology, Immunology and Molecular Genetics" ,  
+    "Microbiology, Immunology, and Molecular Genetics" , 
+    "Mimg" ,                                             
+    "MIMG",                                              
+    "Molecular, Cell, and Developmental Biology",        
+    "Neuroscience",                                      
+    "Neuroscience, B.S",                                 
+    "Psychobiology" ,
+    "psychobiology" ,
+    "Psychobiology & Economics", 
+    "Physiological Science" ,                            
+    "Physiological Sciences",                            
+    "Physiology",                               
+    "Statistics",
+    "statistics",
+    "Statistics and Data Science",
+    "Statistics & Data Science",                         
+    "statistics and data science",                       
+    "Statistics and data science",                       
+    "Statistics and Data Science",                       
+    "Statistics and Data Science/Economics",
+    "Statistics & Data Science and Economics",
+    "Statistics and Data Science/Economic",
+    "STATS and Data Science",
+    "Stats and Date Science",
+    "Undeclared - Physical Sciences",
+    "Undeclared- Life Sciences",
+    "HBS",
+    "Undecided life science", 
+    "Undecided Life Science",
+    "Human Biology & Society",
+    "Microbiology, Immunology & Molecular Genetics",
+    "Molecular Cell and Developmental Biology (MCDB)",
+    "Molecular, Cell, and Developmental Biology B.S.",
+    "Molecular, Cellular and Developmental Biology",
+    "Physics BS",
+    "Statistics and Data Science, Financial Actuarial Mathematics",
+    "Undeclared Life Sciences",
+    "Undecided life science"),
+  "Undecided/Multi-Major/Other" = c("Double Major in Cognitive Science and Philosophy","undeclared", "Undeclared", "cbreynolds17@gmail.com", "Neuroscience, Disability Studies, Individual Major")
+)
+for (new_value in names(replacements_9)) {
+  old_pre$Major[old_pre$Major %in% replacements_9[[new_value]]] <- new_value
+}
+
+for (new_value in names(replacements_9)) {
+  old_post$Major[old_post$Major %in% replacements_9[[new_value]]] <- new_value
+}
+
+for (new_value in names(replacements_9)) {
+  new_pre$Major[new_pre$Major %in% replacements_9[[new_value]]] <- new_value
+}
+
+for (new_value in names(replacements_9)) {
+  new_post$Major[new_post$Major %in% replacements_9[[new_value]]] <- new_value
+}
+```
+
+### Setting the categorical variables as factors and NA omit
+```{r}
+# old data
+old_pre$Course <- as.factor(old_pre$Course)
+old_pre$Major <- as.factor(old_pre$Major)
+old_pre$Gender <- as.factor(old_pre$Gender)
+old_pre$First_Gen <- as.factor(old_pre$First_Gen)
+old_pre$Transfer <- as.factor(old_pre$Transfer)
+old_pre$Father_Edu <- as.factor(old_pre$Father_Edu)
+old_pre$Mother_Edu <- as.factor(old_pre$Mother_Edu)
+old_pre$GPA <- as.factor(old_pre$GPA)
+
+old_post$Course <- as.factor(old_post$Course)
+old_post$Major <- as.factor(old_post$Major)
+old_post$Gender <- as.factor(old_post$Gender)
+old_post$First_Gen <- as.factor(old_post$First_Gen)
+old_post$Transfer <- as.factor(old_post$Transfer)
+old_post$Father_Edu <- as.factor(old_post$Father_Edu)
+old_post$Mother_Edu <- as.factor(old_post$Mother_Edu)
+old_post$GPA <- as.factor(old_post$GPA)
+
+# new data
+new_pre$Course <- as.factor(new_pre$Course)
+new_pre$Major <- as.factor(new_pre$Major)
+new_pre$Gender <- as.factor(new_pre$Gender)
+new_pre$First_Gen <- as.factor(new_pre$First_Gen)
+new_pre$Transfer <- as.factor(new_pre$Transfer)
+new_pre$Father_Edu <- as.factor(new_pre$Father_Edu)
+new_pre$Mother_Edu <- as.factor(new_pre$Mother_Edu)
+new_pre$GPA <- as.factor(new_pre$GPA)
+
+new_post$Course <- as.factor(new_post$Course)
+new_post$Major <- as.factor(new_post$Major)
+new_post$Gender <- as.factor(new_post$Gender)
+new_post$First_Gen <- as.factor(new_post$First_Gen)
+new_post$Transfer <- as.factor(new_post$Transfer)
+new_post$Father_Edu <- as.factor(new_post$Father_Edu)
+new_post$Mother_Edu <- as.factor(new_post$Mother_Edu)
+new_post$GPA <- as.factor(new_post$GPA)
+```
+
+### Saving the data
+```{r}
+write.csv(old_pre, file = "cleaned_old_pre.csv")
+write.csv(old_post, file = "cleaned_old_post.csv")
+write.csv(new_pre, file = "cleaned_new_pre.csv")
+write.csv(new_post, file = "cleaned_new_post.csv")
+```
+
